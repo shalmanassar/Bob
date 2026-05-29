@@ -1,0 +1,4 @@
+# No build artifacts in this repo
+*.exe
+*.dll
+*.pdb

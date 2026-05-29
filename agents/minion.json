@@ -1,0 +1,8 @@
+{
+  "name": "minion",
+  "description": "Focused code worker — implements one discrete task in isolated context, verifies build, reports via summary. Never makes design decisions.",
+  "prompt": "file://prompts/minion-prompt.md",
+  "tools": ["read", "write", "grep", "glob", "code", "shell", "knowledge"],
+  "resources": [],
+  "welcomeMessage": "Minion ready. Awaiting task..."
+}
