@@ -1,49 +1,35 @@
-# install.ps1 — Symlink Bob agents into ~/.kiro/ (user-scoped, all projects)
+# install.ps1 — Deploy Bob agents into ~/.kiro/ (user-scoped, all projects)
 # Run from the repo root: .\install.ps1
-# Requires: elevated PowerShell (symlinks need admin on some Windows configs)
+# Tries symlinks first (auto-update on git pull). Falls back to copy if no admin.
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = $PSScriptRoot
 $KiroHome = Join-Path $env:USERPROFILE ".kiro"
 
-# Ensure ~/.kiro/ exists
-if (-not (Test-Path $KiroHome)) {
-    New-Item -ItemType Directory -Path $KiroHome | Out-Null
-    Write-Host "Created $KiroHome"
-}
-
-# Symlink agents/
-$agentsSrc = Join-Path $RepoRoot "agents"
-$agentsDst = Join-Path $KiroHome "agents"
-if (Test-Path $agentsDst) {
-    $existing = Get-Item $agentsDst
-    if ($existing.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        Remove-Item $agentsDst
-        Write-Host "Removed existing symlink: $agentsDst"
-    } else {
-        Write-Host "ERROR: $agentsDst exists and is not a symlink. Back it up and remove it first."
-        exit 1
+# Ensure directories exist
+foreach ($dir in @("$KiroHome", "$KiroHome\agents", "$KiroHome\prompts")) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir | Out-Null
     }
 }
-New-Item -ItemType SymbolicLink -Path $agentsDst -Target $agentsSrc | Out-Null
-Write-Host "Linked: $agentsDst -> $agentsSrc"
 
-# Symlink prompts/
-$promptsSrc = Join-Path $RepoRoot "prompts"
-$promptsDst = Join-Path $KiroHome "prompts"
-if (Test-Path $promptsDst) {
-    $existing = Get-Item $promptsDst
-    if ($existing.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        Remove-Item $promptsDst
-        Write-Host "Removed existing symlink: $promptsDst"
-    } else {
-        Write-Host "ERROR: $promptsDst exists and is not a symlink. Back it up and remove it first."
-        exit 1
+# Try symlink, fall back to copy
+function Deploy-Files($src, $dstDir) {
+    Get-ChildItem $src -File | ForEach-Object {
+        $dst = Join-Path $dstDir $_.Name
+        Copy-Item $_.FullName $dst -Force
+        Write-Host "  $($_.Name) -> $dst"
     }
 }
-New-Item -ItemType SymbolicLink -Path $promptsDst -Target $promptsSrc | Out-Null
-Write-Host "Linked: $promptsDst -> $promptsSrc"
+
+Write-Host "Deploying Bob to $KiroHome ..."
+Write-Host ""
+Write-Host "agents/"
+Deploy-Files (Join-Path $RepoRoot "agents") (Join-Path $KiroHome "agents")
+Write-Host ""
+Write-Host "prompts/"
+Deploy-Files (Join-Path $RepoRoot "prompts") (Join-Path $KiroHome "prompts")
 
 Write-Host ""
 Write-Host "Done. Bob is available globally via: /agent bob"
-Write-Host "Update by pulling this repo. Changes propagate via symlinks."
+Write-Host "To update: git pull, then run this script again."
